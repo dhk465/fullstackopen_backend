@@ -11,6 +11,8 @@ morgan.token('body', function (request, response) {
   }
 });
 
+app.use(express.static('dist'));
+
 let persons = [
   { 
     "id": "1",
