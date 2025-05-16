@@ -1,18 +1,21 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
-if (process.argv.length < 3) {
-  console.log('give correct credentials as arguments');
-  process.exit(1);
-}
+// if (process.argv.length < 3) {
+//   console.log('give correct credentials as arguments');
+//   process.exit(1);
+// }
 
-const serverId = process.argv[2];
-const password = process.argv[3];
-const name = process.argv[4];
-const number = process.argv[5];
+// const serverId = process.env.DB_LOGIN;
+// const password = process.env.DB_PASSWORD;
+const name = process.argv[2];
+const number = process.argv[3];
 
-const database = 'phonebook';
+// const database = process.env.DB_NAME;
 
-const url = `mongodb+srv://${serverId}:${password}@cluster0.lhb1h.mongodb.net/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+// const url = `mongodb+srv://${serverId}:${password}@cluster0.48ct0y3.mongodb.net/${database}?retryWrites=true&w=majority&appName=Cluster0`;
+
+const url = process.env.DB_URL;
 
 mongoose.set('strictQuery',false);
 
