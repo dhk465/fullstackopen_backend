@@ -23,49 +23,13 @@ app.use(express.static("dist"));
 const errorHandler = (error, request, response, next) => {
   console.error(error.message);
 
-  if (error.name === 'CastError') {
-    return response.status(400).send({ error: 'malformatted id' });
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
   }
-
   next(error);
 };
-
-// let persons = [
-//   {
-//     "id": "1",
-//     "name": "Arto Hellas",
-//     "number": "040-123456"
-//   },
-//   {
-//     "id": "2",
-//     "name": "Ada Lovelace",
-//     "number": "39-44-5323523"
-//   },
-//   {
-//     "id": "3",
-//     "name": "Dan Abramov",
-//     "number": "12-43-234345"
-//   },
-//   {
-//     "id": "4",
-//     "name": "Mary Poppendieck",
-//     "number": "39-23-6423122"
-//   }
-// ];
-
-// Function to generate a random unique id
-// function getRandomId(max) {
-//   return Math.floor(Math.random() * max);
-// }
-
-// function generateId() {
-//   let maxId = 2147483647;
-//   let id = getRandomId(maxId);
-//   while (persons.find(person => person.id === id)) {
-//     id = getRandomId(maxId);
-//   }
-//   return id.toString();
-// }
 
 // Routes
 
@@ -99,14 +63,14 @@ app.get("/api/persons/:id", (request, response, next) => {
 app.delete("/api/persons/:id", (request, response) => {
   const id = request.params.id;
   Person.findByIdAndDelete(id)
-    .then(result => {
+    .then((result) => {
       response.status(204).end();
     })
-    .catch(error => next(error));
+    .catch((error) => next(error));
 });
 
 // Add a new person
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
   const body = request.body;
   console.log(body);
 
@@ -127,17 +91,22 @@ app.post("/api/persons", (request, response) => {
     number: body.number,
   });
 
-  person.save().then((savedPerson) => {
-    response.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      response.json(savedPerson);
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
 
 // Update a person's number
-app.put('/api/persons/:id', (request, response, next) => {
+app.put("/api/persons/:id", (request, response, next) => {
   const { name, number } = request.body;
 
   Person.findById(request.params.id)
-    .then(person => {
+    .then((person) => {
       if (!person) {
         return response.status(404).send({ error: "Person not found" });
       }
@@ -149,13 +118,15 @@ app.put('/api/persons/:id', (request, response, next) => {
         response.json(updatedPerson);
       });
     })
-    .catch(error => next(error));
+    .catch((error) => next(error));
 });
 
 app.get("/info", (request, response) => {
   response.setHeader("Content-Type", "text/plain; charset=utf-8"); // Sets the encoding to utf-8 in case of non-ascii characters
   const date = new Date();
-  response.end(`Phonebook has info for ${Person.length + 1} people \r\n${date}`);
+  response.end(
+    `Phonebook has info for ${Person.length + 1} people \r\n${date}`
+  );
 });
 
 // this has to be the last loaded middleware, also all the routes should be registered before this!
