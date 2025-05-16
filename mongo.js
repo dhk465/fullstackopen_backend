@@ -33,12 +33,12 @@ const person = new Person({
   number: number,
 });
 
-person.save().then(result => {
+person.save().then(() => {
   console.log('Contact saved!');
 });
 
 Person
-  .find({}).then(persons=> {
+  .find({}).then(persons => {
     persons.forEach(person => {
       console.log(`${person.name} ${person.number}`);
     });

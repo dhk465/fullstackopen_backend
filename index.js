@@ -1,31 +1,31 @@
-require("dotenv").config();
-const express = require("express");
-const morgan = require("morgan");
+require('dotenv').config();
+const express = require('express');
+const morgan = require('morgan');
 const app = express();
-const Person = require("./models/person");
+const Person = require('./models/person');
 
 // Middleware
 app.use(express.json());
 app.use(
-  morgan(":method :url :status :res[content-length] - :response-time ms :body")
+  morgan(':method :url :status :res[content-length] - :response-time ms :body')
 );
 
-morgan.token("body", function (request, response) {
-  if (request.method === "POST") {
+morgan.token('body', function (request) {
+  if (request.method === 'POST') {
     return JSON.stringify(request.body);
   }
 });
 
 // using dist for frontend build
-app.use(express.static("dist"));
+app.use(express.static('dist'));
 
 // Error handling middleware definition
 const errorHandler = (error, request, response, next) => {
   console.error(error.message);
 
-  if (error.name === "CastError") {
-    return response.status(400).send({ error: "malformatted id" });
-  } else if (error.name === "ValidationError") {
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' });
+  } else if (error.name === 'ValidationError') {
     return response.status(400).json({ error: error.message });
   }
   next(error);
@@ -34,55 +34,55 @@ const errorHandler = (error, request, response, next) => {
 // Routes
 
 // Get the root (frontend page)
-app.get("/", (request, response) => {
-  response.end("Hello World");
+app.get('/', (request, response) => {
+  response.end('Hello World');
 });
 
 // Get all persons
-app.get("/api/persons", (request, response) => {
+app.get('/api/persons', (request, response) => {
   Person.find({}).then((persons) => {
     response.json(persons);
   });
 });
 
 // Get a single person by id
-app.get("/api/persons/:id", (request, response, next) => {
+app.get('/api/persons/:id', (request, response, next) => {
   const id = request.params.id;
   Person.findById(id)
     .then((person) => {
       if (person) {
         response.json(person);
       } else {
-        response.status(404).send({ error: "Person not found" });
+        response.status(404).send({ error: 'Person not found' });
       }
     })
     .catch((error) => next(error));
 });
 
 // Delete a person
-app.delete("/api/persons/:id", (request, response) => {
+app.delete('/api/persons/:id', (request, response, next) => {
   const id = request.params.id;
   Person.findByIdAndDelete(id)
-    .then((result) => {
+    .then(() => {
       response.status(204).end();
     })
     .catch((error) => next(error));
 });
 
 // Add a new person
-app.post("/api/persons", (request, response, next) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body;
   console.log(body);
 
   if (!body.name) {
     return response.status(400).json({
-      error: "name is missing",
+      error: 'name is missing',
     });
   }
 
   if (!body.number) {
     return response.status(400).json({
-      error: "number is missing",
+      error: 'number is missing',
     });
   }
 
@@ -102,13 +102,13 @@ app.post("/api/persons", (request, response, next) => {
 });
 
 // Update a person's number
-app.put("/api/persons/:id", (request, response, next) => {
+app.put('/api/persons/:id', (request, response, next) => {
   const { name, number } = request.body;
 
   Person.findById(request.params.id)
     .then((person) => {
       if (!person) {
-        return response.status(404).send({ error: "Person not found" });
+        return response.status(404).send({ error: 'Person not found' });
       }
 
       person.name = name;
@@ -121,8 +121,8 @@ app.put("/api/persons/:id", (request, response, next) => {
     .catch((error) => next(error));
 });
 
-app.get("/info", (request, response) => {
-  response.setHeader("Content-Type", "text/plain; charset=utf-8"); // Sets the encoding to utf-8 in case of non-ascii characters
+app.get('/info', (request, response) => {
+  response.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Sets the encoding to utf-8 in case of non-ascii characters
   const date = new Date();
   response.end(
     `Phonebook has info for ${Person.length + 1} people \r\n${date}`
