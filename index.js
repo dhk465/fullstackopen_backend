@@ -1,111 +1,136 @@
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const app = express();
+const Person = require('./models/person');
 
+// Middleware
 app.use(express.json());
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'));
+app.use(
+  morgan(':method :url :status :res[content-length] - :response-time ms :body')
+);
 
-morgan.token('body', function (request, response) {
+morgan.token('body', function (request) {
   if (request.method === 'POST') {
     return JSON.stringify(request.body);
   }
 });
 
-let persons = [
-  { 
-    "id": "1",
-    "name": "Arto Hellas", 
-    "number": "040-123456"
-  },
-  { 
-    "id": "2",
-    "name": "Ada Lovelace", 
-    "number": "39-44-5323523"
-  },
-  { 
-    "id": "3",
-    "name": "Dan Abramov", 
-    "number": "12-43-234345"
-  },
-  { 
-    "id": "4",
-    "name": "Mary Poppendieck", 
-    "number": "39-23-6423122"
+// using dist for frontend build
+app.use(express.static('dist'));
+
+// Error handling middleware definition
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' });
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message });
   }
-];
+  next(error);
+};
 
+// Routes
 
-// Function to generate a random unique id
-
-function getRandomId(max) {
-  return Math.floor(Math.random() * max);
-}
-
-function generateId() {
-  let maxId = 2147483647;
-  let id = getRandomId(maxId);
-  while (persons.find(person => person.id === id)) {
-    id = getRandomId(maxId);
-  }
-  return id.toString();
-}
-
+// Get the root (frontend page)
 app.get('/', (request, response) => {
   response.end('Hello World');
 });
 
+// Get all persons
 app.get('/api/persons', (request, response) => {
-  response.json(persons);
+  Person.find({}).then((persons) => {
+    response.json(persons);
+  });
 });
 
-app.get('/api/persons/:id', (request, response) => {
+// Get a single person by id
+app.get('/api/persons/:id', (request, response, next) => {
   const id = request.params.id;
-  const person = persons.find(person => person.id === id);
-  if (person) {
-    response.json(person);
-  } else {
-    response.status(404).end();
-  }
+  Person.findById(id)
+    .then((person) => {
+      if (person) {
+        response.json(person);
+      } else {
+        response.status(404).send({ error: 'Person not found' });
+      }
+    })
+    .catch((error) => next(error));
 });
 
-app.delete('/api/persons/:id', (request, response) => {
+// Delete a person
+app.delete('/api/persons/:id', (request, response, next) => {
   const id = request.params.id;
-  persons = persons.filter(person => person.id !== id);
-  response.status(204).end();
+  Person.findByIdAndDelete(id)
+    .then(() => {
+      response.status(204).end();
+    })
+    .catch((error) => next(error));
 });
 
-app.post('/api/persons', (request, response) => {
+// Add a new person
+app.post('/api/persons', (request, response, next) => {
   const body = request.body;
   console.log(body);
 
-  if (!body.name || !body.number) {
+  if (!body.name) {
     return response.status(400).json({
-      error: 'name or number is missing'
+      error: 'name is missing',
     });
   }
 
-  if (persons.find(person => person.name === body.name)) {
+  if (!body.number) {
     return response.status(400).json({
-      error: 'name must be unique'
+      error: 'number is missing',
     });
   }
 
-  const person = {
-    id: generateId(),
+  const person = new Person({
     name: body.name,
-    number: body.number
-  };
+    number: body.number,
+  });
 
-  persons = persons.concat(person);
+  person
+    .save()
+    .then((savedPerson) => {
+      response.json(savedPerson);
+    })
+    .catch((error) => {
+      next(error);
+    });
+});
 
-  response.json(person);
+// Update a person's number
+app.put('/api/persons/:id', (request, response, next) => {
+  const { name, number } = request.body;
+
+  Person.findById(request.params.id)
+    .then((person) => {
+      if (!person) {
+        return response.status(404).send({ error: 'Person not found' });
+      }
+
+      person.name = name;
+      person.number = number;
+
+      return person.save().then((updatedPerson) => {
+        response.json(updatedPerson);
+      });
+    })
+    .catch((error) => next(error));
 });
 
 app.get('/info', (request, response) => {
   response.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Sets the encoding to utf-8 in case of non-ascii characters
   const date = new Date();
-  response.end(`Phonebook has info for ${persons.length} people \r\n${date}`);
+  response.end(
+    `Phonebook has info for ${Person.length + 1} people \r\n${date}`
+  );
 });
+
+// this has to be the last loaded middleware, also all the routes should be registered before this!
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

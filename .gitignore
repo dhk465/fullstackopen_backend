@@ -1,2 +1,4 @@
 node_modules
 *.rest
+.vscode/launch.json
+.env
