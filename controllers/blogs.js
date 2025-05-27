@@ -2,6 +2,14 @@ const blogsRouter = require('express').Router();
 const Blog = require('../models/blog');
 const User = require('../models/user');
 
+// const getTokenFrom = (request) => {
+//   const authorization = request.get('authorization');
+//   if (authorization && authorization.startsWith('Bearer ')) {
+//     return authorization.replace('Bearer ', '');
+//   }
+//   return null;
+// };
+
 // Get all blogs
 // blogsRouter.get('/', (request, response) => {
 //   Blog.find({}).then((blogs) => {
@@ -42,23 +50,25 @@ blogsRouter.get('/:id', async (request, response) => {
 });
 
 blogsRouter.post('/', async (request, response) => {
-  const body = request.body;
-
-  const user = await User.findById(body.userId);
-
+  const user = await User.findById(request.user.id);
   if (!user) {
     return response.status(400).json({ error: 'userId missing or not valid' });
   }
-
   const blog = new Blog({ ...request.body, user: user._id });
   const result = await blog.save();
   user.blogs = user.blogs.concat(result._id);
   await user.save();
-
   response.status(201).json(result);
 });
 
 blogsRouter.delete('/:id', async (request, response) => {
+  const blog = await Blog.findById(request.params.id);
+  if (!blog) {
+    return response.status(404).json({ error: 'blog not found' });
+  }
+  if (blog.user.toString() !== request.user.id) {
+    return response.status(401).json({ error: 'unauthorized' });
+  }
   await Blog.findByIdAndDelete(request.params.id);
   response.status(204).end();
 });
