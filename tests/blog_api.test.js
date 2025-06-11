@@ -5,12 +5,31 @@ const supertest = require('supertest');
 const app = require('../app');
 const helper = require('./test_helper');
 const Blog = require('../models/blog');
+const User = require('../models/user');
+
+let token;
 
 const api = supertest(app);
 
 beforeEach(async () => {
   await Blog.deleteMany({});
-  await Blog.insertMany(helper.initialBlogs);
+  await User.deleteMany({});
+  const testUser = {
+    username: 'testuser',
+    name: 'Test User',
+    password: 'testpassword',
+  };
+  await api.post('/api/users').send(testUser);
+  const loginResponse = await api
+    .post('/api/login')
+    .send({ username: testUser.username, password: testUser.password });
+  token = loginResponse.body.token;
+  const user = await User.findOne({ username: testUser.username });
+  const blogsWithUser = helper.initialBlogs.map((blog) => ({
+    ...blog,
+    user: user._id,
+  }));
+  await Blog.insertMany(blogsWithUser);
 });
 
 describe('Processing of blog model', () => {
@@ -74,6 +93,7 @@ describe('Blog creation', () => {
     };
     await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/);
@@ -91,6 +111,7 @@ describe('Blog creation', () => {
     };
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/);
@@ -104,7 +125,11 @@ describe('Blog creation', () => {
       author: 'Robert C. Martin',
       url: 'http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.html',
     };
-    await api.post('/api/blogs').send(newBlog).expect(400);
+    await api
+      .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send(newBlog)
+      .expect(400);
     const blogsAtEnd = await helper.blogsInDb();
     assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length);
   });
@@ -114,7 +139,11 @@ describe('Blog creation', () => {
       title: 'First class tests',
       author: 'Robert C. Martin',
     };
-    await api.post('/api/blogs').send(newBlog).expect(400);
+    await api
+      .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send(newBlog)
+      .expect(400);
     const blogsAtEnd = await helper.blogsInDb();
     assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length);
   });
@@ -124,7 +153,10 @@ describe('Blog deletion', () => {
   test('a blog can be deleted', async () => {
     const blogsAtStart = await helper.blogsInDb();
     const blogToDelete = blogsAtStart[0];
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
     const blogsAtEnd = await helper.blogsInDb();
     assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length - 1);
     const titles = blogsAtEnd.map((r) => r.title);
@@ -142,6 +174,7 @@ describe('Blog updating', () => {
     };
     await api
       .put(`/api/blogs/${blogToUpdate.id}`)
+      .set('Authorization', `Bearer ${token}`)
       .send(updatedBlog)
       .expect(200)
       .expect('Content-Type', /application\/json/);
